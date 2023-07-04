@@ -1,5 +1,13 @@
 package com.epam.mjc;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import com.epam.mjc.MethodSignature.*;
+
 public class MethodParser {
 
     /**
@@ -20,6 +28,46 @@ public class MethodParser {
      * @return {@link MethodSignature} object filled with parsed values from source string
      */
     public MethodSignature parseFunction(String signatureString) {
-        throw new UnsupportedOperationException("You should implement this method.");
+
+        // make a copy of the original signature
+        String signatureStringCopy = new String(signatureString);
+
+        // extract and remove access modifier
+        String accessModifier = null;
+        Matcher accessModifierMatcher = Pattern.compile("^(private|protected|public)\\s+").matcher(signatureStringCopy);
+        if (accessModifierMatcher.find()) {
+            accessModifier = accessModifierMatcher.group(1);
+            signatureStringCopy = signatureStringCopy.substring(accessModifier.length()).trim();
+        }
+
+        // extract and remove arguments area
+        String argumentsArea = signatureStringCopy
+                .substring(signatureStringCopy.indexOf("(") + 1, signatureStringCopy.length() - 1)
+                .replace("[\\(\\)\\s+]", "");
+
+        // parse arguments area
+        StringSplitter splitter = new StringSplitter();
+        List<String> arguments = splitter.splitByDelimiters(argumentsArea, List.of(",", " "));
+        List<Argument> argumentList = IntStream.rangeClosed(0, arguments.size() - 1).filter(i -> i % 2 == 0)
+                .mapToObj(i -> {
+                    return new MethodSignature.Argument(arguments.get(i), arguments.get(i + 1));
+                }).collect(Collectors.toList());
+
+        signatureStringCopy = signatureStringCopy.substring(0, signatureStringCopy.indexOf("("));
+
+        // parse definition area
+        List<String> typeAndName = splitter.splitByDelimiters(signatureStringCopy, List.of(" "));
+
+        // compose the method signature object to be returned
+        MethodSignature methodSignature = new MethodSignature(typeAndName.get(1), argumentList);
+        methodSignature.setReturnType(typeAndName.get(0));
+        methodSignature.setAccessModifier(accessModifier);
+
+        return methodSignature;
+    }
+
+    public static void main(String[] args) {
+        MethodParser methodParser = new MethodParser();
+        methodParser.parseFunction("public void parseMethod(String signature, int number)");
     }
 }
